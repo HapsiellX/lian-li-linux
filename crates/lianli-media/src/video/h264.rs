@@ -29,7 +29,7 @@ pub fn encode_h264(
 
     let fps_int = fps.round().max(1.0) as u32;
     let (out_w, out_h) = target_dimensions(screen, orientation);
-    let bitrate = (out_w as u64 * out_h as u64 * fps_int as u64 / 4).max(1_000_000);
+    let bitrate = (out_w as u64 * out_h as u64 * fps_int as u64 / 2).max(1_000_000);
     let bitrate_str = format!("{bitrate}");
     let fps_str = fps_int.to_string();
 
@@ -136,9 +136,14 @@ pub(super) fn encoder_codec_args_file(
     fps_str: &str,
     bitrate_str: &str,
 ) -> Vec<String> {
+    let gop = fps_str.parse::<u32>().unwrap_or(30).max(1).to_string();
     let mut args: Vec<String> = vec![
         "-r".into(),
         fps_str.into(),
+        "-g".into(),
+        gop.clone(),
+        "-keyint_min".into(),
+        gop,
         "-c:v".into(),
         kind.name().into(),
     ];
@@ -146,6 +151,7 @@ pub(super) fn encoder_codec_args_file(
     match kind {
         EncoderKind::Libx264 => {
             args.extend(["-preset".into(), "ultrafast".into()]);
+            args.extend(["-tune".into(), "zerolatency".into()]);
             args.extend(["-x264opts".into(), "bframes=0".into()]);
             args.extend(["-threads".into(), "4".into()]);
         }
@@ -153,6 +159,7 @@ pub(super) fn encoder_codec_args_file(
             args.extend(["-preset".into(), "p1".into()]);
             args.extend(["-rc".into(), "vbr".into()]);
             args.extend(["-forced-idr".into(), "1".into()]);
+            args.extend(["-no-scenecut".into(), "1".into()]);
             args.extend(["-b:v".into(), bitrate_str.into()]);
         }
         EncoderKind::Amf => {

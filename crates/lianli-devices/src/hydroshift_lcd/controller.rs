@@ -18,20 +18,31 @@ use std::time::Instant;
 use tracing::{debug, info, warn};
 
 /// Used by `stream_h264_reader` to split the pipe byte stream into complete frames.
+/// Handles both 3-byte (`00 00 01`) and 4-byte (`00 00 00 01`) Annex-B start codes.
 fn find_au_split(data: &[u8]) -> Option<usize> {
     let mut found_first = false;
     let mut i = 0;
-    while i + 4 < data.len() {
-        if data[i..i + 4] == [0, 0, 0, 1] {
-            let nal_type = data[i + 4] & 0x1F;
+    while i + 3 < data.len() {
+        let (is_start, nal_offset) = if i + 4 <= data.len() && data[i..i + 4] == [0, 0, 0, 1] {
+            (true, 4)
+        } else if data[i..i + 3] == [0, 0, 1] {
+            (true, 3)
+        } else {
+            (false, 0)
+        };
+
+        if is_start {
+            let nal_type = data[i + nal_offset] & 0x1F;
             if matches!(nal_type, 1 | 5 | 9) {
                 if found_first {
                     return Some(i);
                 }
                 found_first = true;
             }
+            i += nal_offset + 1;
+        } else {
+            i += 1;
         }
-        i += 1;
     }
     None
 }

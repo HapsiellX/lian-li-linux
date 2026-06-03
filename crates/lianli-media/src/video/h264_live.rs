@@ -53,7 +53,7 @@ impl LiveH264Encoder {
         _screen: &ScreenInfo,
     ) -> Result<Self, MediaError> {
         let fps_int = fps.round().max(1.0) as u32;
-        let bitrate = (width as u64 * height as u64 * fps_int as u64 / 4).max(1_000_000);
+        let bitrate = (width as u64 * height as u64 * fps_int as u64 / 2).max(1_000_000);
         let bitrate_str = format!("{bitrate}");
         let fps_str = fps_int.to_string();
         let size_str = format!("{width}x{height}");
